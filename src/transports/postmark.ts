@@ -9,14 +9,19 @@
 
 import ky from 'ky'
 import { createTransport, type Transport } from 'nodemailer'
-import mimeFuncs from 'nodemailer/lib/mime-funcs/index.js'
+import * as mimeFuncs from 'nodemailer/lib/mime-funcs/index.js'
 import type MailMessage from 'nodemailer/lib/mailer/mail-message.js'
 
 import debug from '../debug.js'
 import { MailResponse } from '../mail_response.js'
 import { E_MAIL_TRANSPORT_ERROR } from '../errors.js'
 import { BaseApiTransport } from './base_api_transport.js'
-import { normalizeBaseUrl, extractMessageHeaders, resolveAttachmentContent } from '../utils.js'
+import {
+  normalizeBaseUrl,
+  extractMessageHeaders,
+  resolveAttachmentContent,
+  normalizeRecipients,
+} from '../utils.js'
 
 import type {
   PostmarkConfig,
@@ -56,25 +61,24 @@ class NodeMailerTransport implements Transport {
   #formatRecipients(
     recipients?: MailMessage['data']['to'] | MailMessage['data']['cc'] | MailMessage['data']['bcc']
   ): string | undefined {
-    if (!recipients) {
+    const list = normalizeRecipients(recipients)
+    if (!list.length) {
       return
     }
 
-    if (!Array.isArray(recipients)) {
-      recipients = [recipients] as any
-    }
+    const formatted = list
+      .map((recipient) => {
+        if (typeof recipient === 'string') {
+          return recipient
+        }
 
-    const formatted = (recipients as any[]).map((recipient) => {
-      if (typeof recipient === 'string') {
-        return recipient
-      }
+        if (recipient.name) {
+          return `${recipient.name} <${recipient.address}>`
+        }
 
-      if (recipient.name) {
-        return `${recipient.name} <${recipient.address}>`
-      }
-
-      return recipient.address
-    })
+        return recipient.address
+      })
+      .filter((recipient): recipient is string => Boolean(recipient))
 
     return formatted.join(',')
   }

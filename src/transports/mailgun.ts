@@ -17,7 +17,7 @@ import debug from '../debug.js'
 import { MailResponse } from '../mail_response.js'
 import { E_MAIL_TRANSPORT_ERROR } from '../errors.js'
 import { BaseApiTransport } from './base_api_transport.js'
-import { streamToBlob, normalizeBaseUrl } from '../utils.js'
+import { streamToBlob, normalizeBaseUrl, normalizeRecipients } from '../utils.js'
 
 import type {
   MailgunConfig,
@@ -103,26 +103,20 @@ class NodeMailerTransport implements Transport<MailgunSentMessageInfo> {
   #formatRecipients(
     recipients?: MailMessage['data']['to'] | MailMessage['data']['cc'] | MailMessage['data']['bcc']
   ): string | undefined {
-    if (!recipients) {
+    const list = normalizeRecipients(recipients)
+    if (!list.length) {
       return
     }
 
-    if (typeof recipients === 'string') {
-      return recipients
-    }
-
-    if (Array.isArray(recipients)) {
-      return recipients
-        .map((recipient) => {
-          if (typeof recipient === 'string') {
-            return recipient
-          }
-          return `${recipient.name} <${recipient.address}>`
-        })
-        .join(',')
-    }
-
-    return `${recipients.name} <${recipients.address}>`
+    return list
+      .map((recipient) => {
+        if (typeof recipient === 'string') {
+          return recipient
+        }
+        return recipient.name ? `${recipient.name} <${recipient.address}>` : recipient.address
+      })
+      .filter((recipient): recipient is string => Boolean(recipient))
+      .join(',')
   }
 
   /**

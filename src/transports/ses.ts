@@ -7,8 +7,12 @@
  * file that was distributed with this source code.
  */
 
-import nodemailer from 'nodemailer'
-import type NodeMailerTransport from 'nodemailer/lib/ses-transport/index.js'
+import nodemailer, {
+  type Transporter,
+  type SESSentMessageInfo,
+  type SendMailOptions,
+} from 'nodemailer'
+import type { SESSendEmailRequest } from 'nodemailer/lib/ses-transport/index.js'
 import { SESv2Client, SendEmailCommand, type SendEmailCommandInput } from '@aws-sdk/client-sesv2'
 
 import debug from '../debug.js'
@@ -28,7 +32,7 @@ export class SESTransport implements MailTransportContract {
   /**
    * The nodemailer transport
    */
-  #transporter?: nodemailer.Transporter<NodeMailerTransport.SentMessageInfo>
+  #transporter?: Transporter<SESSentMessageInfo>
 
   constructor(config: SESConfig) {
     this.#config = config
@@ -57,9 +61,12 @@ export class SESTransport implements MailTransportContract {
   async send(
     message: NodeMailerMessage,
     options?: SendEmailCommandInput
-  ): Promise<MailResponse<NodeMailerTransport.SentMessageInfo>> {
+  ): Promise<MailResponse<SESSentMessageInfo>> {
     const transporter = this.#createTransporter()
-    const mailOptions = Object.assign({}, message, { ses: options })
+    const mailOptions: SendMailOptions = {
+      ...message,
+      ...(options ? { ses: options as SESSendEmailRequest } : {}),
+    }
 
     const sesResponse = await transporter.sendMail(mailOptions)
     return new MailResponse(sesResponse.messageId, sesResponse.envelope, sesResponse)

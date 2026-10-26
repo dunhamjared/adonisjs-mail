@@ -14,7 +14,7 @@ import { type Transport, createTransport } from 'nodemailer'
 import type MailMessage from 'nodemailer/lib/mailer/mail-message.js'
 
 import debug from '../debug.js'
-import { normalizeBaseUrl } from '../utils.js'
+import { normalizeBaseUrl, normalizeRecipients } from '../utils.js'
 import { MailResponse } from '../mail_response.js'
 import { E_MAIL_TRANSPORT_ERROR } from '../errors.js'
 import { BaseApiTransport } from './base_api_transport.js'
@@ -52,19 +52,17 @@ class NodeMailerTransport implements Transport {
   #formatRecipients(
     recipients?: MailMessage['data']['to'] | MailMessage['data']['cc'] | MailMessage['data']['bcc']
   ): { address: { name?: string; email: string } }[] {
-    if (!recipients) {
-      return []
-    }
-
-    /**
-     * Normalizing an array of recipients
-     */
-    if (Array.isArray(recipients)) {
-      return recipients.map((recipient) => {
+    const list = normalizeRecipients(recipients)
+    return list
+      .map((recipient) => {
         if (typeof recipient === 'string') {
           return {
             address: { email: recipient },
           }
+        }
+
+        if (!recipient.address) {
+          return undefined
         }
 
         return {
@@ -74,30 +72,10 @@ class NodeMailerTransport implements Transport {
           },
         }
       })
-    }
-
-    /**
-     * Normalizing a string based recipient
-     */
-    if (typeof recipients === 'string') {
-      return [
-        {
-          address: { email: recipients },
-        },
-      ]
-    }
-
-    /**
-     * Normalizing an object based string
-     */
-    return [
-      {
-        address: {
-          email: recipients.address,
-          ...(recipients.name ? { name: recipients.name } : {}),
-        },
-      },
-    ]
+      .filter(
+        (recipient): recipient is { address: { name?: string; email: string } } =>
+          recipient !== undefined
+      )
   }
 
   /**

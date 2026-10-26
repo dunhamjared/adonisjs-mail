@@ -9,11 +9,16 @@
 
 import ky from 'ky'
 import { createTransport, type Transport } from 'nodemailer'
-import type { Address } from 'nodemailer/lib/mailer/index.js'
 import type MailMessage from 'nodemailer/lib/mailer/mail-message.js'
+import type { MimeNodeAddress, MimeNodeAddressInput } from 'nodemailer/lib/mime-node/index.js'
 
 import debug from '../debug.js'
-import { normalizeBaseUrl, extractMessageHeaders, resolveAttachmentContent } from '../utils.js'
+import {
+  normalizeBaseUrl,
+  extractMessageHeaders,
+  resolveAttachmentContent,
+  normalizeRecipients,
+} from '../utils.js'
 import { MailResponse } from '../mail_response.js'
 import { E_MAIL_TRANSPORT_ERROR } from '../errors.js'
 import { BaseApiTransport } from './base_api_transport.js'
@@ -41,7 +46,7 @@ class NodeMailerTransport implements Transport {
   /**
    * Format the address to be accepted by the Brevo API
    */
-  #formatAddress(rawAddress: string | Address | undefined) {
+  #formatAddress(rawAddress: string | MimeNodeAddress | undefined) {
     if (!rawAddress) {
       throw new Error('Missing recipient address')
     }
@@ -64,9 +69,8 @@ class NodeMailerTransport implements Transport {
   /**
    * Format a list of addresses
    */
-  #formatAddresses(rawAddresses: string | Address | Array<string | Address> | undefined) {
-    const addresses = Array.isArray(rawAddresses) ? rawAddresses : [rawAddresses]
-    return addresses.map((address) => this.#formatAddress(address))
+  #formatAddresses(rawAddresses: MimeNodeAddressInput | undefined) {
+    return normalizeRecipients(rawAddresses).map((address) => this.#formatAddress(address))
   }
 
   /**
@@ -88,9 +92,7 @@ class NodeMailerTransport implements Transport {
     }
 
     if (mail.data.replyTo) {
-      payload.replyTo = this.#formatAddress(
-        Array.isArray(mail.data.replyTo) ? mail.data.replyTo[0] : mail.data.replyTo
-      )
+      payload.replyTo = this.#formatAddresses(mail.data.replyTo)[0]
     }
 
     if (mail.data.cc) {

@@ -8,6 +8,7 @@
  */
 
 import type MailMessage from 'nodemailer/lib/mailer/mail-message.js'
+import type { MimeNodeAddressInput, MimeNodeAddress } from 'nodemailer/lib/mime-node/index.js'
 
 import { E_INVALID_CONFIG } from './errors.js'
 
@@ -138,4 +139,30 @@ export function validateConfig(
       `Invalid config for "${transportName}" transport. The "baseUrl" property is missing`
     )
   }
+}
+
+/**
+ * Recursively normalizes recipient inputs into a flat array of
+ * string or MimeNodeAddress objects without requiring type casts.
+ */
+export function normalizeRecipients(
+  recipients?: MimeNodeAddressInput
+): (string | MimeNodeAddress)[] {
+  if (!recipients) {
+    return []
+  }
+
+  const result: (string | MimeNodeAddress)[] = []
+  const queue: MimeNodeAddressInput[] = Array.isArray(recipients) ? [...recipients] : [recipients]
+
+  while (queue.length > 0) {
+    const item = queue.shift()!
+    if (Array.isArray(item)) {
+      queue.push(...item)
+    } else if (item) {
+      result.push(item)
+    }
+  }
+
+  return result
 }

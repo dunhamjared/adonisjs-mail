@@ -12,7 +12,12 @@ import { createTransport, type Transport } from 'nodemailer'
 import type MailMessage from 'nodemailer/lib/mailer/mail-message.js'
 
 import debug from '../debug.js'
-import { normalizeBaseUrl, extractMessageHeaders, resolveAttachmentContent } from '../utils.js'
+import {
+  normalizeBaseUrl,
+  extractMessageHeaders,
+  resolveAttachmentContent,
+  normalizeRecipients,
+} from '../utils.js'
 import { MailResponse } from '../mail_response.js'
 import { E_MAIL_TRANSPORT_ERROR } from '../errors.js'
 import { BaseApiTransport } from './base_api_transport.js'
@@ -43,42 +48,16 @@ class NodeMailerTransport implements Transport {
   #formatRecipients(
     recipients?: MailMessage['data']['to'] | MailMessage['data']['cc'] | MailMessage['data']['bcc']
   ): string[] {
-    if (!recipients) {
-      return []
-    }
-
-    /**
-     * Normalizing an array of recipients
-     */
-    if (Array.isArray(recipients)) {
-      return recipients.map((recipient) => {
+    const list = normalizeRecipients(recipients)
+    return list
+      .map((recipient) => {
         if (typeof recipient === 'string') {
           return recipient
         }
 
-        if (recipient.name) {
-          return `${recipient.name} <${recipient.address}>`
-        }
-
-        return recipient.address
+        return recipient.name ? `${recipient.name} <${recipient.address}>` : recipient.address
       })
-    }
-
-    /**
-     * Normalizing a string based recipient
-     */
-    if (typeof recipients === 'string') {
-      return [recipients]
-    }
-
-    /**
-     * Normalizing an object based string
-     */
-    if (recipients.name) {
-      return [`${recipients.name} <${recipients.address}>`]
-    }
-
-    return [recipients.address]
+      .filter((recipient): recipient is string => Boolean(recipient))
   }
 
   /**

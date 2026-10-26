@@ -15,7 +15,12 @@ import debug from '../debug.js'
 import { MailResponse } from '../mail_response.js'
 import { E_INVALID_CONFIG, E_MAIL_TRANSPORT_ERROR } from '../errors.js'
 import { BaseApiTransport } from './base_api_transport.js'
-import { normalizeBaseUrl, extractMessageHeaders, resolveAttachmentContent } from '../utils.js'
+import {
+  normalizeBaseUrl,
+  extractMessageHeaders,
+  resolveAttachmentContent,
+  normalizeRecipients,
+} from '../utils.js'
 
 import type {
   CloudflareConfig,
@@ -60,25 +65,20 @@ class NodeMailerTransport implements Transport {
   #formatRecipients(
     recipients?: MailMessage['data']['to'] | MailMessage['data']['cc'] | MailMessage['data']['bcc']
   ): string[] {
-    if (!recipients) {
-      return []
-    }
+    const list = normalizeRecipients(recipients)
+    return list
+      .map((recipient) => {
+        if (typeof recipient === 'string') {
+          return recipient
+        }
 
-    if (!Array.isArray(recipients)) {
-      recipients = [recipients] as any
-    }
+        if (recipient.name) {
+          return `${recipient.name} <${recipient.address}>`
+        }
 
-    return (recipients as any[]).map((recipient) => {
-      if (typeof recipient === 'string') {
-        return recipient
-      }
-
-      if (recipient.name) {
-        return `${recipient.name} <${recipient.address}>`
-      }
-
-      return recipient.address
-    })
+        return recipient.address
+      })
+      .filter((recipient): recipient is string => Boolean(recipient))
   }
 
   /**

@@ -17,6 +17,7 @@ import string from '@adonisjs/core/helpers/string'
 import ical, { type ICalCalendar } from 'ical-generator'
 import { RuntimeException } from '@adonisjs/core/exceptions'
 import { type Attachment, type ListHeader } from 'nodemailer/lib/mailer/index.js'
+import type { MimeNodeHeaderMap } from 'nodemailer/lib/mime-node/index.js'
 
 import debug from './debug.js'
 import type {
@@ -739,7 +740,7 @@ export class Message extends Macroable {
     }
 
     if (!Array.isArray(this.nodeMailerMessage.headers)) {
-      this.nodeMailerMessage.headers[key] = value
+      ;(this.nodeMailerMessage.headers as MimeNodeHeaderMap)[key] = value
     }
 
     return this
@@ -755,18 +756,23 @@ export class Message extends Macroable {
       return false
     }
 
-    const headerValue = headers[key]
+    const headerValue = (headers as MimeNodeHeaderMap)[key]
     if (!headerValue) {
       return false
     }
 
     if (value) {
       return !!(Array.isArray(value) ? value : [value]).every((one) => {
-        return typeof headerValue === 'string'
-          ? headerValue === one
-          : Array.isArray(headerValue)
-            ? headerValue.includes(one)
-            : headerValue.value === one
+        if (typeof headerValue === 'string') {
+          return headerValue === one
+        }
+        if (Array.isArray(headerValue)) {
+          return headerValue.includes(one)
+        }
+        if (typeof headerValue === 'object' && headerValue !== null && 'value' in headerValue) {
+          return headerValue.value === one
+        }
+        return false
       })
     }
 
@@ -780,7 +786,8 @@ export class Message extends Macroable {
   assertHeader(key: string, value?: string | string[]) {
     if (!this.hasHeader(key, value)) {
       const headers = this.nodeMailerMessage.headers
-      const actual = headers && !Array.isArray(headers) ? headers[key] : undefined
+      const actual =
+        headers && !Array.isArray(headers) ? (headers as MimeNodeHeaderMap)[key] : undefined
 
       if (!value || !actual) {
         throw new AssertionError({
@@ -805,7 +812,7 @@ export class Message extends Macroable {
     }
 
     if (!Array.isArray(this.nodeMailerMessage.headers)) {
-      this.nodeMailerMessage.headers[key] = { prepared: true, value }
+      ;(this.nodeMailerMessage.headers as MimeNodeHeaderMap)[key] = { prepared: true, value }
     }
 
     return this
