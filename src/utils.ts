@@ -147,22 +147,14 @@ export function validateConfig(
  */
 export function normalizeRecipients(
   recipients?: MimeNodeAddressInput
-): (string | MimeNodeAddress)[] {
+): Array<string | MimeNodeAddress> {
   if (!recipients) {
     return []
   }
 
-  const result: (string | MimeNodeAddress)[] = []
-  const queue: MimeNodeAddressInput[] = Array.isArray(recipients) ? [...recipients] : [recipients]
-
-  while (queue.length > 0) {
-    const item = queue.shift()!
-    if (Array.isArray(item)) {
-      queue.push(...item)
-    } else if (item) {
-      result.push(item)
-    }
+  if (!Array.isArray(recipients)) {
+    return [recipients]
   }
 
-  return result
+  return recipients.flatMap((recipient) => normalizeRecipients(recipient))
 }

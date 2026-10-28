@@ -29,6 +29,17 @@ test.group('Utils normalizeRecipients', () => {
     assert.deepEqual(normalizeRecipients(recipients), recipients)
   })
 
+  test('recursively flatten nested arrays while preserving order', ({ assert }) => {
+    const input = ['a@example.com', ['b@example.com', 'c@example.com'], 'd@example.com']
+
+    assert.deepEqual(normalizeRecipients(input), [
+      'a@example.com',
+      'b@example.com',
+      'c@example.com',
+      'd@example.com',
+    ])
+  })
+
   test('recursively flatten nested arrays of recipients', ({ assert }) => {
     const input = [['user1@example.com', 'user2@example.com'], ['user3@example.com']]
 
